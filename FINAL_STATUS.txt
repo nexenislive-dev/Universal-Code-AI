@@ -1,0 +1,20 @@
+UNIVERSAL CODE AI - SOURCE PACKAGE STATUS
+
+This is an upgraded Python source package, not a finished Android APK.
+
+Implemented:
+- Local llama.cpp OpenAI-compatible server connector (localhost only; no API key).
+- SQLite knowledge/document storage.
+- Explicit-URL public documentation fetcher with size/content-type limits.
+- Online learning enable/disable state controls.
+- Local model-first code generation and honest retrieval fallback.
+- CLI and prototype Kivy GUI.
+
+Not included / not yet completed:
+- GGUF model weights (must be separately downloaded; license and device fit must be checked).
+- llama.cpp Android runtime binary/build.
+- APK build and device installation test.
+- Automatic model fine-tuning. Database storage is not model training.
+- Full multi-file project extraction/export and robust isolated code execution.
+
+No paid API or API key is required by the included source. A local model server must be installed and started separately for AI generation. Without it, the app can only retrieve saved examples and must not be treated as an AI model.

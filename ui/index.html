@@ -1,0 +1,81 @@
+<!DOCTYPE html>
+<html lang="en"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Universal Code AI</title>
+<style>
+:root{--bg:#0f1115;--card:#1a1d24;--fg:#e8eaf0;--mut:#8b93a7;--acc:#4f8cff;--ok:#3ecf8e;--bad:#ff6b6b;--bd:#2a2f3a}
+@media(prefers-color-scheme:light){:root{--bg:#f5f6fa;--card:#fff;--fg:#1b1e27;--mut:#667;--bd:#dde0ea}}
+*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--fg);font:15px system-ui,sans-serif;display:flex;flex-direction:column;height:100vh}
+header{padding:10px 14px;border-bottom:1px solid var(--bd);display:flex;justify-content:space-between;align-items:center}
+header b{font-size:16px}.dot{display:inline-block;width:9px;height:9px;border-radius:50%;background:var(--bad);margin-right:6px}.dot.on{background:var(--ok)}
+nav{display:flex;border-bottom:1px solid var(--bd)}nav button{flex:1;padding:11px 4px;background:none;border:0;color:var(--mut);font-size:14px;border-bottom:2px solid transparent}
+nav button.on{color:var(--acc);border-color:var(--acc)}
+main{flex:1;overflow:auto;padding:12px}section{display:none}section.on{display:block}
+.msg{background:var(--card);border:1px solid var(--bd);border-radius:12px;padding:10px 12px;margin:8px 0;white-space:pre-wrap;word-break:break-word}
+.msg.u{background:var(--acc);color:#fff;border:0;margin-left:18%}
+pre{background:#0b0d12;color:#d8deea;border-radius:8px;padding:10px;overflow:auto;position:relative;font:13px ui-monospace,monospace;margin:8px 0;white-space:pre}
+pre button{position:absolute;top:4px;right:4px;font-size:11px;padding:3px 8px}
+textarea,input{width:100%;background:var(--card);color:var(--fg);border:1px solid var(--bd);border-radius:10px;padding:10px;font:14px ui-monospace,monospace}
+textarea.code{min-height:200px}
+button{background:var(--acc);color:#fff;border:0;border-radius:10px;padding:10px 14px;font-size:14px}button.s{background:var(--card);color:var(--fg);border:1px solid var(--bd)}
+button:disabled{opacity:.5}.row{display:flex;gap:8px;margin:8px 0;flex-wrap:wrap}.row>*{flex:1}
+.out{background:#0b0d12;color:#d8deea;border-radius:10px;padding:10px;font:12.5px ui-monospace,monospace;white-space:pre-wrap;word-break:break-word;margin-top:8px}
+h3{margin:14px 0 6px;font-size:14px;color:var(--mut)}.card{background:var(--card);border:1px solid var(--bd);border-radius:12px;padding:10px;margin:8px 0}
+.small{font-size:12px;color:var(--mut)}label{display:flex;align-items:center;gap:8px}
+</style></head><body>
+<header><b>Universal Code AI</b><span id="st" class="small"><span class="dot"></span>checking...</span></header>
+<nav id="tabs"><button class="on" data-t="chat">Chat</button><button data-t="code">Code</button><button data-t="proj">Projects</button><button data-t="set">Settings</button></nav>
+<main>
+<section id="chat" class="on"><div id="log"></div>
+<div class="row"><textarea id="q" rows="2" placeholder="Kya banana hai? (e.g. python me todo app)"></textarea></div>
+<div class="row"><button id="send">Send</button><button class="s" id="clr">Clear</button></div></section>
+
+<section id="code"><textarea id="src" class="code" spellcheck="false" placeholder="Code yahan paste karo..."></textarea>
+<div class="row"><input id="lang" placeholder="language (auto)"></div>
+<div class="row"><button id="run">Run</button><button id="rep">Repair with AI</button><button class="s" id="cp">Copy</button></div>
+<div id="cout" class="out" style="display:none"></div></section>
+
+<section id="proj"><h3>Generate project</h3>
+<textarea id="preq" rows="3" placeholder="Describe the project..."></textarea>
+<div class="row"><button id="pgo">Generate + ZIP</button></div><div id="pout" class="out" style="display:none"></div>
+<h3>Import existing project (ZIP)</h3><input type="file" id="zip" accept=".zip"><div id="iout" class="out" style="display:none"></div>
+<h3>History</h3><div id="plist"></div></section>
+
+<section id="set"><div class="card"><label><input type="checkbox" id="safe" style="width:auto"> Safe mode (dangerous code auto-run block)</label>
+<div class="small">OFF karne par code bina block ke chalega, wo files delete kar sakta hai.</div></div>
+<div class="card"><input id="mpath" placeholder="GGUF path, e.g. /storage/emulated/0/Download/model.gguf"><div class="row"><button id="mstart">Start model</button><button class="s" id="mstop">Stop</button></div><div id="mout" class="small"></div></div>
+<div class="card"><button class="s" id="bk" style="width:100%">Backup database</button><div id="bout" class="small"></div></div>
+<div class="card small" id="info"></div></section>
+</main>
+<script>
+const $=s=>document.querySelector(s);
+async function api(p,b,raw,q){const o=b===undefined?{}:{method:'POST',headers:{'X-UCA':'1','Content-Type':raw?'application/octet-stream':'application/json'},body:raw?b:JSON.stringify(b)};
+ const r=await fetch(p+(q||''),o);const j=await r.json().catch(()=>({error:'bad response'}));if(!r.ok)throw new Error(j.error||r.status);return j}
+document.querySelectorAll('#tabs button').forEach(b=>b.onclick=()=>{document.querySelectorAll('#tabs button,section').forEach(e=>e.classList.remove('on'));b.classList.add('on');$('#'+b.dataset.t).classList.add('on');if(b.dataset.t==='proj')plist();if(b.dataset.t==='set')refresh()});
+function esc(s){return s.replace(/[&<>]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;'}[c]))}
+function render(el,t){el.innerHTML='';t.split(/(```[\s\S]*?```)/g).forEach(p=>{if(p.startsWith('```')){const code=p.replace(/^```[^\n]*\n?/,'').replace(/```$/,'');const pre=document.createElement('pre');pre.textContent=code;const b=document.createElement('button');b.textContent='Copy';b.onclick=()=>{navigator.clipboard&&navigator.clipboard.writeText(code);b.textContent='Copied'};pre.appendChild(b);el.appendChild(pre)}else if(p.trim()){const s=document.createElement('div');s.textContent=p.trim();el.appendChild(s)}})}
+function add(cls,t){const d=document.createElement('div');d.className='msg '+cls;if(cls==='u')d.textContent=t;else render(d,t);$('#log').appendChild(d);d.scrollIntoView();return d}
+async function refresh(){try{const s=await api('/api/status');$('#st').innerHTML='<span class="dot '+(s.model_online?'on':'')+'"></span>'+(s.model_online?'model online':'model offline');$('#safe').checked=s.safe_mode;
+ $('#info').textContent='Languages runnable: '+Object.keys(s.languages).join(', ')+' | DB: '+JSON.stringify(s.db)}catch(e){$('#st').textContent='server error'}}
+$('#send').onclick=async()=>{const m=$('#q').value.trim();if(!m)return;$('#q').value='';add('u',m);const w=add('a','Soch raha hoon...');$('#send').disabled=true;
+ try{const r=await api('/api/chat',{message:m});render(w,r.reply)}catch(e){w.textContent='Error: '+e.message}$('#send').disabled=false};
+$('#clr').onclick=async()=>{await api('/api/clear',{});$('#log').innerHTML=''};
+function show(el,t){el.style.display='block';el.textContent=t}
+$('#run').onclick=async()=>{show($('#cout'),'Running...');try{const r=await api('/api/run',{code:$('#src').value,language:$('#lang').value});
+ show($('#cout'),'['+r.status+']\n'+(r.stdout||'')+(r.stderr||r.error||''))}catch(e){show($('#cout'),e.message)}};
+$('#rep').onclick=async()=>{show($('#cout'),'AI fix kar raha hai (slow ho sakta hai)...');try{const r=await api('/api/repair',{code:$('#src').value,language:$('#lang').value});
+ let t=r.message+'\n';if(r.success&&r.diff){t+='\n'+r.diff;$('#src').value=r.final_code}if(r.security&&r.security.length)t+='\nSecurity notes: '+r.security.join('; ');show($('#cout'),t)}catch(e){show($('#cout'),e.message)}};
+$('#cp').onclick=()=>navigator.clipboard&&navigator.clipboard.writeText($('#src').value);
+$('#pgo').onclick=async()=>{const r=$('#preq').value.trim();if(!r)return;$('#pgo').disabled=true;show($('#pout'),'Starting...');
+ try{const {job}=await api('/api/project',{request:r});const t=setInterval(async()=>{const j=await api('/api/job/'+job);show($('#pout'),j.done?j.report:j.log.join('\n'));
+  if(j.done){clearInterval(t);$('#pgo').disabled=false;plist()}},2000)}catch(e){show($('#pout'),e.message);$('#pgo').disabled=false}};
+$('#zip').onchange=async e=>{const f=e.target.files[0];if(!f)return;show($('#iout'),'Analyzing...');try{const r=await api('/api/import',await f.arrayBuffer(),true,'?name='+encodeURIComponent(f.name.replace(/\.zip$/i,'')));show($('#iout'),r.summary+'\n\n'+r.tree)}catch(x){show($('#iout'),x.message)}};
+async function plist(){try{const l=await api('/api/projects');$('#plist').innerHTML=l.length?'':'<div class="small">Abhi koi project nahi.</div>';l.forEach(p=>{const d=document.createElement('div');d.className='card';
+ d.innerHTML='<b>'+esc(p.name||'')+'</b> <span class="small">'+esc(p.status||'')+'</span><div class="small">'+esc((p.request||'').slice(0,120))+'</div><a href="/api/download?path='+encodeURIComponent(p.zip||'')+'" style="color:var(--acc)">Download ZIP</a> &nbsp; <a href="#" class="sv" style="color:var(--acc)">Save to Downloads</a><span class="small sm"></span>';
+ d.querySelector('.sv').onclick=async ev=>{ev.preventDefault();try{const r=await api('/api/save_zip',{path:p.zip});d.querySelector('.sm').textContent=' saved: '+r.saved}catch(e){d.querySelector('.sm').textContent=' '+e.message}};$('#plist').appendChild(d)})}catch(e){}}
+$('#safe').onchange=e=>api('/api/safe_mode',{on:e.target.checked});
+$('#mstart').onclick=async()=>{$('#mout').textContent='Starting (1-2 min)...';try{const r=await api('/api/model/start',{path:$('#mpath').value});$('#mout').textContent=r.success?'Model started':'Failed: '+r.error;refresh()}catch(e){$('#mout').textContent=e.message}};
+$('#mstop').onclick=async()=>{await api('/api/model/stop',{});refresh()};
+$('#bk').onclick=async()=>{try{const r=await api('/api/backup',{});$('#bout').textContent='Saved: '+r.path}catch(e){$('#bout').textContent=e.message}};
+refresh();setInterval(refresh,15000);
+</script></body></html>

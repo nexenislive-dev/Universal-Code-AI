@@ -1,0 +1,2 @@
+# Core runtime: Python standard library only (sqlite3 included in normal Python builds)
+# Optional Android UI: kivy (install separately for the target platform)

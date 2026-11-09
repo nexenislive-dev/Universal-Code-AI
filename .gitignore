@@ -1,0 +1,11 @@
+__pycache__/
+*.pyc
+.buildozer/
+bin/
+data/
+projects/
+exports/
+backups/
+logs/
+models/
+.venv/
